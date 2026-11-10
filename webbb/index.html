@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generator Kartu Mitra - Prima Mart</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f1f5f9;
+    }
+    .canvas-shadow {
+      box-shadow: 0 20px 35px -10px rgba(6, 48, 32, 0.35), 0 8px 16px -6px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 pb-24 lg:pb-12">
+
+  <!-- HEADER -->
+  <header class="bg-[#083a24] text-white border-b border-emerald-800/70 sticky top-0 z-40 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3.5 relative">
+        <!-- Tombol Logo Pojok Kiri Atas (Memanggil logo.png) -->
+        <button id="headerLogoBtn" type="button" title="Klik untuk info pembuat" class="group relative flex items-center justify-center bg-white rounded-xl p-1.5 shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 focus:outline-none">
+          <img src="logo.png" alt="Logo Prima Mart" class="h-10 w-auto object-contain rounded-lg" />
+        </button>
+
+        <!-- Pop-up Rounded Rectangle "made by Eriky" -->
+        <div id="creatorPopup" class="hidden absolute left-0 top-14 z-50 bg-white text-emerald-950 px-4 py-2.5 rounded-2xl shadow-xl border-2 border-amber-400 min-w-[175px] transition-all duration-200">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
+              <span class="font-bold text-sm tracking-wide">made by Eriky</span>
+            </div>
+            <button id="closePopupBtn" type="button" class="text-slate-400 hover:text-slate-700 text-xs font-bold px-1">&times;</button>
+          </div>
+        </div>
+
+        <div>
+          <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-white leading-tight">Generator Kartu Mitra</h1>
+          <p class="text-xs text-emerald-200/90">Prima Mart &bull; Ayam Premium Harga Pabrik</p>
+        </div>
+      </div>
+
+      <!-- Tombol Download Template Excel di Pojok Kanan Atas -->
+      <button id="downloadTemplateBtn" type="button" class="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 active:bg-amber-500 text-emerald-950 font-bold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl shadow-sm transition-all shrink-0">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        <span>Download Template Excel</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 pt-5 lg:pt-8">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+
+      <!-- KOLOM KIRI / ATAS (PRATINJAU KARTU) -->
+      <div id="previewStickyContainer" class="lg:col-span-7 sticky top-16 lg:top-24 z-30 bg-slate-100/95 backdrop-blur-md lg:bg-transparent py-2 lg:py-0 -mx-4 px-4 sm:mx-0 sm:px-0 border-b lg:border-b-0 border-slate-200/80 transition-all">
+        <div class="bg-white rounded-2xl p-3 sm:p-5 shadow-sm border border-slate-200/90">
+          <div class="flex items-center justify-between mb-2.5">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+              <h2 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-600">Pratinjau Kartu Real-Time (1536 &times; 1000 px)</h2>
+            </div>
+            <button id="toggleCompactMobileBtn" type="button" class="lg:hidden text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg">
+              Perkecil Kartu
+            </button>
+          </div>
+
+          <!-- Canvas Wrapper -->
+          <div id="canvasContainer" class="w-full overflow-hidden flex justify-center transition-all duration-200">
+            <canvas id="cardCanvas" width="1536" height="1000" class="w-full h-auto rounded-xl canvas-shadow"></canvas>
+          </div>
+
+          <!-- Action Buttons Desktop & Tablet -->
+          <div class="hidden sm:grid sm:grid-cols-2 gap-3 mt-4 pt-3 border-t border-slate-100">
+            <button id="downloadPngBtn" type="button" class="flex items-center justify-center gap-2 bg-[#0b4d30] hover:bg-[#083a24] text-white font-bold py-3 px-4 rounded-xl shadow-sm transition-all">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Download Kartu (PNG)</span>
+            </button>
+
+            <button id="shareCardBtn" type="button" class="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-sm transition-all">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              <span>Kirim ke WA / Share</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KOLOM KANAN / BAWAH (FORM INPUT & GENERATE EXCEL) -->
+      <div class="lg:col-span-5">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200/90 overflow-hidden">
+
+          <!-- Tab Switcher -->
+          <div class="grid grid-cols-2 bg-slate-100 p-1.5 border-b border-slate-200">
+            <button id="tabSingleBtn" type="button" class="py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all bg-white text-emerald-950 shadow-sm">
+              Isi Satuan (Form)
+            </button>
+            <button id="tabBulkBtn" type="button" class="py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all text-slate-600 hover:text-slate-900">
+              Generate Excel (Massal)
+            </button>
+          </div>
+
+          <!-- PANEL 1: FORM SATUAN -->
+          <div id="panelSingle" class="p-5 sm:p-6 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-base text-slate-800">Data Kartu Mitra</h3>
+              <button id="resetFormBtn" type="button" class="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition-all">
+                Reset Form
+              </button>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label for="inputNama" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Nama</label>
+                <input id="inputNama" type="text" placeholder="Ketik Nama Mitra..." autocomplete="off" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 outline-none font-semibold text-slate-900 uppercase" />
+              </div>
+
+              <div>
+                <label for="inputIdPelanggan" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">ID Pelanggan (Otomatis Jadi Barcode)</label>
+                <input id="inputIdPelanggan" type="text" placeholder="Contoh: C000090600" autocomplete="off" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 outline-none font-mono font-bold text-slate-900 uppercase" />
+              </div>
+
+              <div>
+                <label for="inputNomorVa" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Nomor VA</label>
+                <input id="inputNomorVa" type="text" placeholder="Ketik Nomor Virtual Account..." autocomplete="off" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 outline-none font-semibold text-slate-900" />
+              </div>
+
+              <div>
+                <label for="inputNamaUsaha" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Nama Usaha</label>
+                <input id="inputNamaUsaha" type="text" placeholder="Ketik Nama Usaha Mitra..." autocomplete="off" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 outline-none font-semibold text-slate-900 uppercase" />
+              </div>
+
+              <div>
+                <label for="inputTempatRegistrasi" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Tempat Registrasi</label>
+                <input id="inputTempatRegistrasi" type="text" placeholder="Ketik Nama Cabang Prima Mart..." autocomplete="off" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 outline-none font-semibold text-slate-900 uppercase" />
+              </div>
+            </div>
+          </div>
+
+          <!-- PANEL 2: GENERATE MASSAL VIA EXCEL -->
+          <div id="panelBulk" class="hidden p-5 sm:p-6 space-y-4">
+            <div>
+              <h3 class="font-bold text-base text-slate-800">Upload File Excel (.xlsx / .xls / .csv)</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Gunakan tombol <b>Download Template Excel</b> di kanan atas agar nama kolom sesuai.</p>
+            </div>
+
+            <label for="excelFileInput" class="flex flex-col items-center justify-center border-2 border-dashed border-emerald-600/40 hover:border-emerald-600 bg-emerald-50/40 hover:bg-emerald-50/80 rounded-2xl p-6 cursor-pointer transition-all text-center">
+              <svg class="w-10 h-10 text-emerald-700 mb-2" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span class="text-sm font-bold text-emerald-950">Klik untuk pilih file Excel</span>
+              <span id="excelFileName" class="text-xs text-slate-500 mt-1">Belum ada file dipilih</span>
+              <input id="excelFileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" />
+            </label>
+
+            <!-- Daftar Data Excel -->
+            <div id="bulkResultContainer" class="hidden space-y-3">
+              <div class="flex items-center justify-between bg-slate-100 px-3.5 py-2 rounded-xl">
+                <span id="bulkCountBadge" class="text-xs font-bold text-emerald-900">0 Data Mitra Terbaca</span>
+                <button id="clearBulkBtn" type="button" class="text-xs font-semibold text-rose-600 hover:underline">Hapus</button>
+              </div>
+
+              <div id="bulkList" class="max-h-60 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl"></div>
+
+              <!-- Progress Bar ZIP -->
+              <div id="bulkProgressWrap" class="hidden space-y-1.5">
+                <div class="flex justify-between text-xs font-bold text-emerald-900">
+                  <span id="bulkProgressText">Membuat kartu...</span>
+                  <span id="bulkProgressPercent">0%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div id="bulkProgressBar" class="h-full bg-emerald-600 transition-all duration-150" style="width: 0%"></div>
+                </div>
+              </div>
+
+              <button id="downloadAllZipBtn" type="button" class="w-full flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-emerald-950 font-extrabold py-3 px-4 rounded-xl shadow-sm transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span>Download Semua Kartu (.ZIP)</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- STICKY BOTTOM BAR KHUSUS HP -->
+  <div class="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 px-4 py-2.5 grid grid-cols-2 gap-2.5 shadow-lg">
+    <button id="downloadPngBtnMobile" type="button" class="flex items-center justify-center gap-1.5 bg-[#0b4d30] active:bg-[#083a24] text-white font-bold text-xs py-3 px-3 rounded-xl">
+      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+      </svg>
+      <span>Download PNG</span>
+    </button>
+
+    <button id="shareCardBtnMobile" type="button" class="flex items-center justify-center gap-1.5 bg-emerald-600 active:bg-emerald-700 text-white font-bold text-xs py-3 px-3 rounded-xl">
+      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+      </svg>
+      <span>Kirim WA / Share</span>
+    </button>
+  </div>
+
+  <!-- SCRIPT GENERATOR KARTU -->
+  <script>
+    const CARD_WIDTH = 1536;
+    const CARD_HEIGHT = 1000;
+
+    const DEFAULT_TEMPLATE = {
+      nama: "NAMA MITRA",
+      idPelanggan: "1234 5678 9012 3456",
+      nomorVa: "1234 5678 9012 3456",
+      namaUsaha: "NAMA USAHA MITRA",
+      tempatRegistrasi: "NAMA PRIMA MART"
+    };
+
+    const mainCanvas = document.getElementById("cardCanvas");
+    const mainCtx = mainCanvas.getContext("2d");
+
+    const inputNama = document.getElementById("inputNama");
+    const inputIdPelanggan = document.getElementById("inputIdPelanggan");
+    const inputNomorVa = document.getElementById("inputNomorVa");
+    const inputNamaUsaha = document.getElementById("inputNamaUsaha");
+    const inputTempatRegistrasi = document.getElementById("inputTempatRegistrasi");
+
+    let noisePatternCanvas = null;
+    let bulkMembers = [];
+
+    // Memuat file logo.png dari folder yang sama untuk digambar di dalam kartu
+    const customLogoImg = new Image();
+    customLogoImg.src = "logo.png";
+    customLogoImg.onload = () => {
+      renderCurrentCard();
+    };
+
+    // Tekstur bintik halus latar hijau kartu
+    function initNoisePattern() {
+      const pCanvas = document.createElement("canvas");
+      pCanvas.width = 140;
+      pCanvas.height = 140;
+      const pCtx = pCanvas.getContext("2d");
+      const imgData = pCtx.createImageData(140, 140);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const v = Math.random() * 255;
+        data[i] = v;
+        data[i + 1] = v;
+        data[i + 2] = v;
+        data[i + 3] = 11;
+      }
+      pCtx.putImageData(imgData, 0, 0);
+      noisePatternCanvas = pCanvas;
+    }
+
+    function roundedRectPath(ctx, x, y, w, h, r) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + w, y, x + w, y + h, radius);
+      ctx.arcTo(x + w, y + h, x, y + h, radius);
+      ctx.arcTo(x, y + h, x, y, radius);
+      ctx.arcTo(x, y, x + w, y, radius);
+      ctx.closePath();
+    }
+
+    // Menggambar logo.png di pojok kiri atas kartu
+    function drawPrimaMartLogo(ctx) {
+      if (!customLogoImg.complete || customLogoImg.naturalWidth === 0) return;
+
+      ctx.save();
+      ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+      ctx.shadowBlur = 14;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 7;
+
+      const maxW = 300;
+      const maxH = 300;
+      const boxX = 70;
+      const boxY = 0;
+
+      const ratio = Math.min(maxW / customLogoImg.naturalWidth, maxH / customLogoImg.naturalHeight);
+      const drawW = customLogoImg.naturalWidth * ratio;
+      const drawH = customLogoImg.naturalHeight * ratio;
+      const drawX = boxX + (maxW - drawW) / 2;
+      const drawY = boxY + (maxH - drawH) / 2;
+
+      ctx.drawImage(customLogoImg, drawX, drawY, drawW, drawH);
+      ctx.restore();
+    }
+
+    // Auto-fit ukuran huruf tanpa pernah dipotong "..."
+    function drawAutoFitText(ctx, text, x, y, maxWidth, initialSize, minSize, fontWeight, fontFamily, color, letterSpacingPx = 1.2) {
+      let fontSize = initialSize;
+      ctx.fillStyle = color;
+
+      while (fontSize > minSize) {
+        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+        const measured = ctx.measureText(text).width + Math.max(0, text.length - 1) * letterSpacingPx;
+        if (measured <= maxWidth) break;
+        fontSize -= 1;
+      }
+
+      ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+      const totalWidth = ctx.measureText(text).width + Math.max(0, text.length - 1) * letterSpacingPx;
+      const scaleX = totalWidth > maxWidth ? maxWidth / totalWidth : 1;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scaleX, 1);
+
+      let curX = 0;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        ctx.fillText(ch, curX, 0);
+        curX += ctx.measureText(ch).width + letterSpacingPx;
+      }
+      ctx.restore();
+    }
+
+    function drawSpacedLabel(ctx, text, x, y, fontStr, color, spacingPx) {
+      ctx.save();
+      ctx.font = fontStr;
+      ctx.fillStyle = color;
+      let curX = x;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        ctx.fillText(ch, curX, y);
+        curX += ctx.measureText(ch).width + spacingPx;
+      }
+      ctx.restore();
+    }
+
+    function drawBarcodeBox(ctx, codeText) {
+      const boxX = 882;
+      const boxY = 319;
+      const boxW = 542;
+      const boxH = 120;
+
+      ctx.save();
+      roundedRectPath(ctx, boxX, boxY, boxW, boxH, 16);
+      const boxGrad = ctx.createLinearGradient(boxX, boxY, boxX + boxW, boxY);
+      boxGrad.addColorStop(0, "#9ab69c");
+      boxGrad.addColorStop(0.5, "#b3e59f");
+      boxGrad.addColorStop(1, "#9db89f");
+      ctx.fillStyle = boxGrad;
+      ctx.fill();
+
+      const cleanCode = (codeText || DEFAULT_TEMPLATE.idPelanggan).trim();
+      const tempCanvas = document.createElement("canvas");
+      try {
+        JsBarcode(tempCanvas, cleanCode, {
+          format: "CODE128",
+          displayValue: false,
+          margin: 0,
+          width: 3,
+          height: 74,
+          background: "transparent",
+          lineColor: "#041e11"
+        });
+        ctx.drawImage(tempCanvas, boxX + 25, boxY + 15, boxW - 50, 74);
+      } catch (e) {
+        console.warn("Gagal render barcode:", e);
+      }
+
+      drawSpacedLabel(
+        ctx,
+        cleanCode,
+        boxX + 26,
+        boxY + 109,
+        "600 20px 'Space Mono', monospace",
+        "#062315",
+        1.8
+      );
+      ctx.restore();
+    }
+
+    function drawSectionDivider(ctx, y) {
+      const x1 = 889;
+      const x2 = 1424;
+      const grad = ctx.createLinearGradient(x1, y, x2, y);
+      grad.addColorStop(0, "#f25c22");
+      grad.addColorStop(0.5, "#f59e0b");
+      grad.addColorStop(1, "#f25c22");
+      ctx.save();
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x1, y);
+      ctx.lineTo(x2, y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawCardOnContext(ctx, memberData) {
+      const nama = (memberData.nama || "").trim() || DEFAULT_TEMPLATE.nama;
+      const idPelanggan = (memberData.idPelanggan || "").trim() || DEFAULT_TEMPLATE.idPelanggan;
+      const nomorVa = (memberData.nomorVa || "").trim() || DEFAULT_TEMPLATE.nomorVa;
+      const namaUsaha = (memberData.namaUsaha || "").trim() || DEFAULT_TEMPLATE.namaUsaha;
+      const tempatRegistrasi = (memberData.tempatRegistrasi || "").trim() || DEFAULT_TEMPLATE.tempatRegistrasi;
+
+      ctx.clearRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+
+      // 1. LATAR HIJAU GELAP UTAMA
+      const bgGrad = ctx.createLinearGradient(0, 0, CARD_WIDTH, CARD_HEIGHT);
+      bgGrad.addColorStop(0, "#052e1c");
+      bgGrad.addColorStop(0.55, "#063b24");
+      bgGrad.addColorStop(1, "#042416");
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+
+      // 2. EFEK CAHAYA SPOTLIGHT KIRI ATAS
+      const spotGrad = ctx.createRadialGradient(410, 165, 30, 410, 165, 355);
+      spotGrad.addColorStop(0, "rgba(38, 152, 87, 0.72)");
+      spotGrad.addColorStop(0.65, "rgba(21, 108, 60, 0.35)");
+      spotGrad.addColorStop(1, "rgba(6, 59, 36, 0)");
+      ctx.fillStyle = spotGrad;
+      ctx.fillRect(0, 0, 900, 620);
+
+      if (noisePatternCanvas) {
+        ctx.save();
+        ctx.fillStyle = ctx.createPattern(noisePatternCanvas, "repeat");
+        ctx.fillRect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+        ctx.restore();
+      }
+
+      // 3. AREA FRAME DALAM & PANEL KRIM KANAN DENGAN KURVA S
+      const frameX = 31;
+      const frameY = 35;
+      const frameW = 1473;
+      const frameH = 921;
+      const frameR = 54;
+
+      ctx.save();
+      roundedRectPath(ctx, frameX, frameY, frameW, frameH, frameR);
+      ctx.clip();
+
+      // Panel Kanan Warna Krim Terang
+      ctx.beginPath();
+      ctx.moveTo(988, frameY);
+      ctx.bezierCurveTo(855, 42, 765, 195, 785, 398);
+      ctx.bezierCurveTo(806, 615, 845, 815, 662, frameY + frameH);
+      ctx.lineTo(frameX + frameW, frameY + frameH);
+      ctx.lineTo(frameX + frameW, frameY);
+      ctx.closePath();
+
+      const creamGrad = ctx.createLinearGradient(750, frameY, frameX + frameW, frameY + frameH);
+      creamGrad.addColorStop(0, "#f5f4ee");
+      creamGrad.addColorStop(0.5, "#faf9f5");
+      creamGrad.addColorStop(1, "#f3f1e8");
+      ctx.fillStyle = creamGrad;
+      ctx.fill();
+
+      // Garis Kurva S Emas Pemisah
+      ctx.beginPath();
+      ctx.moveTo(988, frameY);
+      ctx.bezierCurveTo(855, 42, 765, 195, 785, 398);
+      ctx.bezierCurveTo(806, 615, 845, 815, 662, frameY + frameH);
+      const sCurveGrad = ctx.createLinearGradient(0, frameY, 0, frameY + frameH);
+      sCurveGrad.addColorStop(0, "#c89d42");
+      sCurveGrad.addColorStop(0.5, "#dfc06d");
+      sCurveGrad.addColorStop(1, "#b58932");
+      ctx.strokeStyle = sCurveGrad;
+      ctx.lineWidth = 10;
+      ctx.stroke();
+      ctx.restore();
+
+      // 4. BINGKAI EMAS KELILING KARTU
+      ctx.save();
+      roundedRectPath(ctx, frameX, frameY, frameW, frameH, frameR);
+      const borderGrad = ctx.createLinearGradient(frameX, frameY, frameX + frameW, frameY + frameH);
+      borderGrad.addColorStop(0, "#b88e39");
+      borderGrad.addColorStop(0.35, "#dfc16e");
+      borderGrad.addColorStop(0.7, "#b58932");
+      borderGrad.addColorStop(1, "#d4af57");
+      ctx.strokeStyle = borderGrad;
+      ctx.lineWidth = 4.5;
+      ctx.stroke();
+      ctx.restore();
+
+      // 5. LOGO PRIMA MART (KIRI ATAS KARTU - MEMANGGIL logo.png)
+      drawPrimaMartLogo(ctx);
+
+      // 6. TIPOGRAFI KIRI: KARTU MITRA & SUBTITLE EMAS
+      ctx.save();
+      ctx.fillStyle = "#f8faf9";
+      ctx.font = "600 94px 'Cormorant Garamond', Georgia, serif";
+      drawSpacedLabel(ctx, "KARTU", 95, 590, "600 118px 'Cormorant Garamond', Georgia, serif", "#f8faf9", 7.5);
+      drawSpacedLabel(ctx, "MITRA", 95, 700, "600 118px 'Cormorant Garamond', Georgia, serif", "#f8faf9", 7.5);
+
+      // Garis tipis emas di bawah KARTU MITRA
+      const ruleGrad = ctx.createLinearGradient(54, 732, 650, 732);
+      ruleGrad.addColorStop(0, "rgba(212, 175, 55, 0.08)");
+      ruleGrad.addColorStop(0.5, "rgba(232, 198, 90, 0.95)");
+      ruleGrad.addColorStop(1, "rgba(212, 175, 55, 0.08)");
+      ctx.strokeStyle = ruleGrad;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(54, 732);
+      ctx.lineTo(650, 732);
+      ctx.stroke();
+
+      // Teks AYAM PREMIUM HARGA PABRIK
+      drawSpacedLabel(ctx, "AYAM PREMIUM", 99, 804, "600 47px 'Cinzel', Georgia, serif", "#cbb252", 6.2);
+      drawSpacedLabel(ctx, "HARGA PABRIK", 99, 862, "600 47px 'Cinzel', Georgia, serif", "#cbb252", 6.5);
+      ctx.restore();
+
+      // 7. DATA MEMBER KANAN (AUTO-FIT TANPA "...")
+      const rightX = 900;
+      const maxFieldWidth = 522;
+      const labelColor = "#0a3822";
+      const valueColor = "#0a3822";
+
+      // Field 1: NAMA
+      drawSpacedLabel(ctx, "NAMA", 909, 185, "600 26px 'Inter', sans-serif", labelColor, 3.6);
+      drawAutoFitText(ctx, nama.toUpperCase(), rightX, 238, maxFieldWidth, 45, 16, "700", "'Inter', sans-serif", valueColor, 1.5);
+      drawSectionDivider(ctx, 258);
+
+      // Field 2: ID PELANGGAN + BARCODE
+      drawSpacedLabel(ctx, "ID PELANGGAN", rightX, 303, "600 26px 'Inter', sans-serif", labelColor, 3.2);
+      drawBarcodeBox(ctx, idPelanggan.toUpperCase());
+      drawSectionDivider(ctx, 452);
+
+      // Field 3: NOMOR VA
+      drawSpacedLabel(ctx, "NOMOR VA", rightX, 494, "600 26px 'Inter', sans-serif", labelColor, 3.2);
+      drawAutoFitText(ctx, nomorVa, rightX, 545, maxFieldWidth, 41, 16, "700", "'Inter', sans-serif", valueColor, 1.4);
+      drawSectionDivider(ctx, 577);
+
+      // Field 4: NAMA USAHA
+      drawSpacedLabel(ctx, "NAMA USAHA", rightX, 619, "600 26px 'Inter', sans-serif", labelColor, 3.2);
+      drawAutoFitText(ctx, namaUsaha.toUpperCase(), rightX, 675, maxFieldWidth, 40, 16, "700", "'Inter', sans-serif", valueColor, 1.4);
+      drawSectionDivider(ctx, 706);
+
+      // Field 5: TEMPAT REGISTRASI
+      drawSpacedLabel(ctx, "TEMPAT REGISTRASI", rightX, 757, "600 26px 'Inter', sans-serif", labelColor, 3.2);
+      drawAutoFitText(ctx, tempatRegistrasi.toUpperCase(), rightX, 813, maxFieldWidth, 38, 15, "700", "'Inter', sans-serif", valueColor, 1.4);
+    }
+
+    function getCurrentFormMember() {
+      return {
+        nama: inputNama.value,
+        idPelanggan: inputIdPelanggan.value,
+        nomorVa: inputNomorVa.value,
+        namaUsaha: inputNamaUsaha.value,
+        tempatRegistrasi: inputTempatRegistrasi.value
+      };
+    }
+
+    function renderCurrentCard() {
+      drawCardOnContext(mainCtx, getCurrentFormMember());
+    }
+
+    // Event Listener Input Form Real-Time
+    [inputNama, inputIdPelanggan, inputNomorVa, inputNamaUsaha, inputTempatRegistrasi].forEach((el) => {
+      el.addEventListener("input", renderCurrentCard);
+    });
+
+    // Reset Form
+    document.getElementById("resetFormBtn").addEventListener("click", () => {
+      inputNama.value = "";
+      inputIdPelanggan.value = "";
+      inputNomorVa.value = "";
+      inputNamaUsaha.value = "";
+      inputTempatRegistrasi.value = "";
+      renderCurrentCard();
+    });
+
+    // Pop-up "made by Eriky" saat logo diklik
+    const headerLogoBtn = document.getElementById("headerLogoBtn");
+    const creatorPopup = document.getElementById("creatorPopup");
+    const closePopupBtn = document.getElementById("closePopupBtn");
+
+    headerLogoBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      creatorPopup.classList.toggle("hidden");
+    });
+
+    closePopupBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      creatorPopup.classList.add("hidden");
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!creatorPopup.contains(e.target) && !headerLogoBtn.contains(e.target)) {
+        creatorPopup.classList.add("hidden");
+      }
+    });
+
+    // Perkecil / Perbesar Pratinjau di HP
+    const toggleCompactMobileBtn = document.getElementById("toggleCompactMobileBtn");
+    const canvasContainer = document.getElementById("canvasContainer");
+    let isCompactMobile = false;
+
+    toggleCompactMobileBtn.addEventListener("click", () => {
+      isCompactMobile = !isCompactMobile;
+      if (isCompactMobile) {
+        canvasContainer.classList.add("max-w-[220px]", "mx-auto");
+        toggleCompactMobileBtn.textContent = "Perbesar Kartu";
+      } else {
+        canvasContainer.classList.remove("max-w-[220px]", "mx-auto");
+        toggleCompactMobileBtn.textContent = "Perkecil Kartu";
+      }
+    });
+
+    // Fungsi Nama File Aman
+    function buildSafeFileName(member) {
+      const rawName = (member.nama || "MITRA").trim().replace(/[^a-zA-Z0-9_-]+/g, "_");
+      const rawId = (member.idPelanggan || "ID").trim().replace(/[^a-zA-Z0-9_-]+/g, "_");
+      return `Kartu_Mitra_${rawName}_${rawId}.jpg`;
+    }
+
+    // Download PNG
+    function downloadCurrentCardPng() {
+      renderCurrentCard();
+      const link = document.createElement("a");
+      link.download = buildSafeFileName(getCurrentFormMember());
+      link.href = mainCanvas.toDataURL("image/jpeg", 0.92);
+      link.click();
+    }
+
+    document.getElementById("downloadPngBtn").addEventListener("click", downloadCurrentCardPng);
+    document.getElementById("downloadPngBtnMobile").addEventListener("click", downloadCurrentCardPng);
+
+    // Share ke WA / Sistem HP
+    async function shareCurrentCard() {
+      renderCurrentCard();
+      const member = getCurrentFormMember();
+      const fileName = buildSafeFileName(member);
+
+      mainCanvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], fileName, { type: "image/jpeg" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              title: "Kartu Mitra Prima Mart",
+              text: `Kartu Mitra Prima Mart - ${member.nama || "Mitra Baru"}`,
+              files: [file]
+            });
+          } catch (err) {
+            if (err.name !== "AbortError") downloadCurrentCardPng();
+          }
+        } else {
+          downloadCurrentCardPng();
+        }
+      }, "image/jpeg", 0.92);
+    }
+
+    document.getElementById("shareCardBtn").addEventListener("click", shareCurrentCard);
+    document.getElementById("shareCardBtnMobile").addEventListener("click", shareCurrentCard);
+
+    // Switcher Tab Satuan vs Massal
+    const tabSingleBtn = document.getElementById("tabSingleBtn");
+    const tabBulkBtn = document.getElementById("tabBulkBtn");
+    const panelSingle = document.getElementById("panelSingle");
+    const panelBulk = document.getElementById("panelBulk");
+
+    tabSingleBtn.addEventListener("click", () => {
+      panelSingle.classList.remove("hidden");
+      panelBulk.classList.add("hidden");
+      tabSingleBtn.className = "py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all bg-white text-emerald-950 shadow-sm";
+      tabBulkBtn.className = "py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all text-slate-600 hover:text-slate-900";
+    });
+
+    tabBulkBtn.addEventListener("click", () => {
+      panelBulk.classList.remove("hidden");
+      panelSingle.classList.add("hidden");
+      tabBulkBtn.className = "py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all bg-white text-emerald-950 shadow-sm";
+      tabSingleBtn.className = "py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all text-slate-600 hover:text-slate-900";
+    });
+
+    // Download Template Excel
+    document.getElementById("downloadTemplateBtn").addEventListener("click", () => {
+      const headers = [
+        ["NAMA MITRA", "ID PELANGGAN", "NOMOR VA", "NAMA USAHA MITRA", "TEMPAT REGISTRASI"],
+        ["CONTOH NAMA MITRA", "C000090600", "202470090600", "CONTOH USAHA MITRA", "PRIMA MART CABANG"]
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(headers);
+      ws["!cols"] = [{ wch: 25 }, { wch: 20 }, { wch: 22 }, { wch: 26 }, { wch: 26 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Data_Mitra");
+      XLSX.writeFile(wb, "Template_Kartu_Mitra_PrimaMart.xlsx");
+    });
+
+    // Baca File Excel untuk Generate Massal
+    const excelFileInput = document.getElementById("excelFileInput");
+    const excelFileName = document.getElementById("excelFileName");
+    const bulkResultContainer = document.getElementById("bulkResultContainer");
+    const bulkCountBadge = document.getElementById("bulkCountBadge");
+    const bulkList = document.getElementById("bulkList");
+
+    function pickColumnValue(rowObj, possibleKeys) {
+      const normalizedMap = {};
+      Object.keys(rowObj).forEach((k) => {
+        normalizedMap[k.trim().toUpperCase()] = String(rowObj[k] ?? "").trim();
+      });
+      for (const key of possibleKeys) {
+        if (normalizedMap[key] !== undefined && normalizedMap[key] !== "") {
+          return normalizedMap[key];
+        }
+      }
+      return "";
+    }
+
+    excelFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      excelFileName.textContent = file.name;
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+
+        bulkMembers = rows
+          .map((r) => ({
+            nama: pickColumnValue(r, ["NAMA MITRA", "NAMA"]),
+            idPelanggan: pickColumnValue(r, ["ID PELANGGAN", "ID", "ID_PELANGGAN"]),
+            nomorVa: pickColumnValue(r, ["NOMOR VA", "NO VA", "VA", "NOMOR_VA"]),
+            namaUsaha: pickColumnValue(r, ["NAMA USAHA MITRA", "NAMA USAHA", "USAHA"]),
+            tempatRegistrasi: pickColumnValue(r, ["TEMPAT REGISTRASI", "CABANG", "PRIMA MART"])
+          }))
+          .filter((m) => m.nama || m.idPelanggan);
+
+        renderBulkList();
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    function renderBulkList() {
+      bulkList.innerHTML = "";
+      if (bulkMembers.length === 0) {
+        bulkResultContainer.classList.add("hidden");
+        return;
+      }
+
+      bulkResultContainer.classList.remove("hidden");
+      bulkCountBadge.textContent = `${bulkMembers.length} Data Mitra Siap Digenerate`;
+
+      bulkMembers.forEach((item, idx) => {
+        const rowEl = document.createElement("div");
+        rowEl.className = "p-3 hover:bg-emerald-50/60 flex items-center justify-between gap-2 cursor-pointer transition-all";
+        rowEl.innerHTML = `
+          <div class="min-w-0">
+            <p class="text-xs font-bold text-slate-800 truncate">${idx + 1}. ${item.nama || "-"}</p>
+            <p class="text-[11px] text-slate-500 truncate">ID: ${item.idPelanggan || "-"} &bull; ${item.namaUsaha || "-"}</p>
+          </div>
+          <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-100/80 px-2.5 py-1 rounded-lg shrink-0">Lihat</span>
+        `;
+        rowEl.addEventListener("click", () => {
+          inputNama.value = item.nama;
+          inputIdPelanggan.value = item.idPelanggan;
+          inputNomorVa.value = item.nomorVa;
+          inputNamaUsaha.value = item.namaUsaha;
+          inputTempatRegistrasi.value = item.tempatRegistrasi;
+          renderCurrentCard();
+        });
+        bulkList.appendChild(rowEl);
+      });
+
+      // Tampilkan baris pertama ke pratinjau
+      const first = bulkMembers[0];
+      inputNama.value = first.nama;
+      inputIdPelanggan.value = first.idPelanggan;
+      inputNomorVa.value = first.nomorVa;
+      inputNamaUsaha.value = first.namaUsaha;
+      inputTempatRegistrasi.value = first.tempatRegistrasi;
+      renderCurrentCard();
+    }
+
+    document.getElementById("clearBulkBtn").addEventListener("click", () => {
+      bulkMembers = [];
+      excelFileInput.value = "";
+      excelFileName.textContent = "Belum ada file dipilih";
+      bulkResultContainer.classList.add("hidden");
+    });
+
+    // Generate & Download Semua Kartu (.ZIP)
+    document.getElementById("downloadAllZipBtn").addEventListener("click", async () => {
+      if (bulkMembers.length === 0) return;
+
+      const progressWrap = document.getElementById("bulkProgressWrap");
+      const progressBar = document.getElementById("bulkProgressBar");
+      const progressPercent = document.getElementById("bulkProgressPercent");
+      const progressText = document.getElementById("bulkProgressText");
+
+      progressWrap.classList.remove("hidden");
+      const zip = new JSZip();
+      const offCanvas = document.createElement("canvas");
+      offCanvas.width = CARD_WIDTH;
+      offCanvas.height = CARD_HEIGHT;
+      const offCtx = offCanvas.getContext("2d");
+
+      for (let i = 0; i < bulkMembers.length; i++) {
+        const m = bulkMembers[i];
+        drawCardOnContext(offCtx, m);
+
+        const dataUrl = offCanvas.toDataURL("image/jpeg", 0.92);
+        const base64Data = dataUrl.split(",")[1];
+        const safeName = `${String(i + 1).padStart(3, "0")}_${buildSafeFileName(m)}`;
+        zip.file(safeName, base64Data, { base64: true });
+
+        const pct = Math.round(((i + 1) / bulkMembers.length) * 100);
+        progressBar.style.width = `${pct}%`;
+        progressPercent.textContent = `${pct}%`;
+        progressText.textContent = `Memproses (${i + 1}/${bulkMembers.length})...`;
+        await new Promise((r) => setTimeout(r, 15));
+      }
+
+      progressText.textContent = "Mengemas file ZIP...";
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const zipLink = document.createElement("a");
+      zipLink.href = URL.createObjectURL(zipBlob);
+      zipLink.download = `Kartu_Mitra_PrimaMart_${bulkMembers.length}_Member.zip`;
+      zipLink.click();
+
+      setTimeout(() => {
+        progressWrap.classList.add("hidden");
+      }, 1200);
+    });
+
+    // Inisialisasi Awal
+    initNoisePattern();
+    document.fonts.ready.then(() => {
+      renderCurrentCard();
+    });
+    renderCurrentCard();
+  </script>
+</body>
+</html>
